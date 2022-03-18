@@ -1,0 +1,6 @@
+domain: sergeyshevch.github.io
+layout:
+- go.kubebuilder.io/v3
+projectName: topologyspread-webhook
+repo: github.com/sergeyshevch/topologyspread-webhook
+version: "3"
