@@ -28,32 +28,37 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// +kubebuilder:webhook:path=/mutate,admissionReviewVersions=v1,sideEffects=None,mutating=true,failurePolicy=fail,groups="",resources=pods,verbs=create;update,versions=v1,name=topologyspread-mutation.sergeyshevch.github.io
+// +kubebuilder:webhook:path=/mutates,admissionReviewVersions=v1,sideEffects=None,mutating=true,failurePolicy=fail,groups="",resources=pods,verbs=create;update,versions=v1,name=topologyspread-mutation.sergeyshevch.github.io
 
-var preferredMaxSkewAnnotation = "preferred-max-skew.sergeyshevch.github.com"
+const preferredMaxSkewAnnotation = "preferred-max-skew.sergeyshevch.github.com"
 
+// TopologySpreadMutator webhook interface that provide mutation for pod topologySpreadConstraints.
 type TopologySpreadMutator struct {
 	Client                  client.Client
 	PreferredMaxSkewDefault int
 	decoder                 *admission.Decoder
 }
 
-func (a *TopologySpreadMutator) InjectDecoder(d *admission.Decoder) error {
-	a.decoder = d
+// InjectDecoder injects admission decoder into webhook interface.
+func (t *TopologySpreadMutator) InjectDecoder(d *admission.Decoder) error {
+	t.decoder = d
+
 	return nil
 }
 
-func (a *TopologySpreadMutator) Handle(ctx context.Context, req admission.Request) admission.Response {
-	pod := &corev1.Pod{}
-	err := a.decoder.Decode(req, pod)
+// Handle main function that provide mutation logic.
+func (t *TopologySpreadMutator) Handle(ctx context.Context, req admission.Request) admission.Response {
+	pod := &corev1.Pod{} //nolint:exhaustivestruct
+
+	err := t.decoder.Decode(req, pod)
 	if err != nil {
 		return admission.Errored(http.StatusBadRequest, err)
 	}
 
-	preferredMaxSkew := int32(a.PreferredMaxSkewDefault)
+	preferredMaxSkew := int32(t.PreferredMaxSkewDefault)
 
 	if value, ok := pod.Annotations[preferredMaxSkewAnnotation]; ok {
-		intValue, err := strconv.ParseInt(value, 10, 32)
+		intValue, err := strconv.ParseInt(value, 10, 32) //nolint:gomnd
 		if err != nil {
 			return admission.Denied(fmt.Sprintf("%s annotation values cannot be parsed to int", preferredMaxSkewAnnotation))
 		}
@@ -93,5 +98,6 @@ func (a *TopologySpreadMutator) Handle(ctx context.Context, req admission.Reques
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
+
 	return admission.PatchResponseFromRaw(req.Object.Raw, marshaledPod)
 }

@@ -20,8 +20,6 @@ import (
 	"flag"
 	"os"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -37,41 +35,52 @@ import (
 	"github.com/sergeyshevch/topologyspread-webhook/pkg"
 )
 
+const (
+	defaultPort             = 9443
+	defaultPreferredMaxSkew = 3
+)
+
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+//nolint:gochecknoinits
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
-}
+} //nolint:wsl
 
-func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var probeAddr string
-	var preferredMaxSkewDefault int
+func main() { //nolint:funlen
+	var (
+		metricsAddr             string
+		enableLeaderElection    bool
+		probeAddr               string
+		preferredMaxSkewDefault int
+	)
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-	flag.IntVar(&preferredMaxSkewDefault, "preferred-max-skew-default", 3,
+	flag.IntVar(&preferredMaxSkewDefault, "preferred-max-skew-default", defaultPreferredMaxSkew,
 		"Default maxSkew value for preferred pod anitAffinity conversion")
-	opts := zap.Options{
+
+	opts := zap.Options{ //nolint:exhaustivestruct
 		Development: true,
 	}
+
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{ //nolint:exhaustivestruct
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Port:                   defaultPort,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "342b6ee3.sergeyshevch.github.io",
@@ -87,6 +96,7 @@ func main() {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
 	}
+
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
@@ -94,7 +104,7 @@ func main() {
 
 	mgr.GetWebhookServer().Register(
 		"/mutate",
-		&webhook.Admission{
+		&webhook.Admission{ //nolint:exhaustivestruct
 			Handler: &pkg.TopologySpreadMutator{
 				Client:                  mgr.GetClient(),
 				PreferredMaxSkewDefault: preferredMaxSkewDefault,
@@ -103,6 +113,7 @@ func main() {
 	)
 
 	setupLog.Info("starting manager")
+
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
