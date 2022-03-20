@@ -1,0 +1,14 @@
+apiVersion: v2
+name: topologyspread-webhook
+description: Mutation webhook for replacinf podAntiAffinity with topologySpreadConstraints
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/sergeyshevch/topologyspread-webhook
+sources:
+  - https://github.com/sergeyshevch/helm-charts
+  - https://github.com/sergeyshevch/topologyspread-webhook
+maintainers:
+  - name: sergeyshevch
+    url: https://github.com/sergeyshevch
+    email: sergeyshevchdevelop@gmail.com

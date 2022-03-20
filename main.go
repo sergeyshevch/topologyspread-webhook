@@ -103,7 +103,7 @@ func main() { //nolint:funlen
 	}
 
 	mgr.GetWebhookServer().Register(
-		"/mutate",
+		"/mutate-topology-spread",
 		&webhook.Admission{ //nolint:exhaustivestruct
 			Handler: &pkg.TopologySpreadMutator{
 				Client:                  mgr.GetClient(),

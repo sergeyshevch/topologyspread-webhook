@@ -41,7 +41,12 @@ patchesStrategicMerge:
 # Uncomment 'CERTMANAGER' sections in crd/kustomization.yaml to enable the CA injection in the admission webhooks.
 # 'CERTMANAGER' needs to be enabled to use ca injection
 - webhookcainjection_patch.yaml
-- webhookselector_patch.yaml
+
+patches:
+  - target:
+      name: mutating-webhook-configuration
+      kind: MutatingWebhookConfiguration
+    path: webhookselector_patch.yaml
 
 # the following config is for teaching kustomize how to do var substitution
 vars:

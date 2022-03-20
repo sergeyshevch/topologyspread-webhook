@@ -1,0 +1,79 @@
+{{ $tls := fromYaml ( include "topologyspread-webhook.webhookCerts" . ) }}
+
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  annotations:
+    {{- if .Values.certManager }}
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "topologyspread-webhook.certName" . }}
+    {{- end }}
+  name: {{ include "topologyspread-webhook.fullname" . }}
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      caBundle: {{ if not .Values.certManager -}}{{ $tls.caCert }}{{- else -}}Cg=={{ end }}
+      service:
+        name: {{ include "topologyspread-webhook.serviceName" . }}
+        namespace: {{ .Release.Namespace }}
+        path: /mutate-topology-spread
+    failurePolicy: Fail
+    name: topologyspread-mutation.sergeyshevch.github.io
+    objectSelector:
+      matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: NotIn
+        values:
+          - topologyspread-webhook
+      - key: skip.topologyspread-webhook.sergeyshevch.github.io
+        operator: DoesNotExist
+    rules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - pods
+    sideEffects: None
+---
+{{- if .Values.certManager }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "topologyspread-webhook.certName" . }}
+  labels:
+    {{- include "topologyspread-webhook.labels" . | nindent 4 }}
+spec:
+  dnsNames:
+    - {{ include "topologyspread-webhook.fullname" . }}.{{ .Release.Namespace }}.svc
+    - {{ include "topologyspread-webhook.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: {{ include "topologyspread-webhook.issuerName" . }}
+  secretName: {{ include "topologyspread-webhook.certName" . }}
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "topologyspread-webhook.issuerName" . }}
+  labels:
+    {{- include "topologyspread-webhook.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+{{- else }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "topologyspread-webhook.certName" . }}
+  labels:
+    {{- include "topologyspread-webhook.labels" . | nindent 4 }}
+type: kubernetes.io/tls
+data:
+  ca.crt: {{ $tls.caCert }}
+  tls.crt: {{ $tls.clientCert }}
+  tls.key: {{ $tls.clientKey }}
+  {{- end }}

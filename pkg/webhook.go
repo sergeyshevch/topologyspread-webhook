@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// +kubebuilder:webhook:path=/mutates,admissionReviewVersions=v1,sideEffects=None,mutating=true,failurePolicy=fail,groups="",resources=pods,verbs=create;update,versions=v1,name=topologyspread-mutation.sergeyshevch.github.io
+// +kubebuilder:webhook:path=/mutate-topology-spread,admissionReviewVersions=v1,sideEffects=None,mutating=true,failurePolicy=fail,groups="",resources=pods,verbs=create;update,versions=v1,name=topologyspread-mutation.sergeyshevch.github.io
 
 const preferredMaxSkewAnnotation = "preferred-max-skew.sergeyshevch.github.com"
 

@@ -1,0 +1,29 @@
+run:
+  concurrency: 5
+  skip-dirs:
+    - vendor
+  tests: false
+
+issues:
+  exclude-use-default: false
+  exclude:
+    - ST1000
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: pkg/webhook.go
+      linters:
+        - lll
+
+linters:
+  enable-all: true
+  disable:
+    # Not suitable for this package
+    - gochecknoglobals
+    - gci
+
+    # Deprecated
+    - maligned
+    - interfacer
+    - golint
+    - scopelint
+
