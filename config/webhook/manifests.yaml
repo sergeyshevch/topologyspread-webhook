@@ -13,7 +13,7 @@ webhooks:
       namespace: system
       path: /mutate
   failurePolicy: Fail
-  name: topologyspread-mutation.sergeyshevch.dev
+  name: topologyspread-mutation.sergeyshevch.github.io
   rules:
   - apiGroups:
     - ""
