@@ -3,7 +3,7 @@ name: topologyspread-webhook
 description: Mutation webhook for replacinf podAntiAffinity with topologySpreadConstraints
 type: application
 version: 0.1.0
-appVersion: "0.1.0"
+appVersion: "v0.1.0"
 home: https://github.com/sergeyshevch/topologyspread-webhook
 sources:
   - https://github.com/sergeyshevch/helm-charts
