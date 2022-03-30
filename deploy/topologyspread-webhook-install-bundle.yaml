@@ -1,0 +1,201 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/name: topologyspread-webhook
+  name: topologyspread-webhook
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: topologyspread-webhook-controller-manager
+  namespace: topologyspread-webhook
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: topologyspread-webhook-leader-election-role
+  namespace: topologyspread-webhook
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: topologyspread-webhook-leader-election-rolebinding
+  namespace: topologyspread-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: topologyspread-webhook-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: topologyspread-webhook-controller-manager
+  namespace: topologyspread-webhook
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: topologyspread-webhook-webhook-service
+  namespace: topologyspread-webhook
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 9443
+  selector:
+    app.kubernetes.io/name: topologyspread-webhook
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: topologyspread-webhook
+  name: topologyspread-webhook-controller-manager
+  namespace: topologyspread-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: topologyspread-webhook
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        app.kubernetes.io/name: topologyspread-webhook
+    spec:
+      containers:
+      - args:
+        - --leader-elect
+        command:
+        - /manager
+        image: controller:latest
+        imagePullPolicy: Never
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - mountPath: /tmp/k8s-webhook-server/serving-certs
+          name: cert
+          readOnly: true
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: topologyspread-webhook-controller-manager
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: webhook-server-cert
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: topologyspread-webhook-serving-cert
+  namespace: topologyspread-webhook
+spec:
+  dnsNames:
+  - topologyspread-webhook-webhook-service.topologyspread-webhook.svc
+  - topologyspread-webhook-webhook-service.topologyspread-webhook.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: topologyspread-webhook-selfsigned-issuer
+  secretName: webhook-server-cert
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: topologyspread-webhook-selfsigned-issuer
+  namespace: topologyspread-webhook
+spec:
+  selfSigned: {}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  annotations:
+    cert-manager.io/inject-ca-from: topologyspread-webhook/topologyspread-webhook-serving-cert
+  name: topologyspread-webhook-mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: topologyspread-webhook-webhook-service
+      namespace: topologyspread-webhook
+      path: /mutates
+  failurePolicy: Fail
+  name: topologyspread-mutation.sergeyshevch.github.io
+  objectSelector:
+    matchExpressions:
+    - key: app.kubernetes.io/name
+      operator: NotIn
+      values:
+      - topologyspread-webhook
+    - key: skip.topologyspread-webhook.sergeyshevch.github.io
+      operator: DoesNotExist
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - pods
+  sideEffects: None
